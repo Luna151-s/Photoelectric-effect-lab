@@ -35,17 +35,21 @@ edited_df = st.data_editor(
 st.markdown("---")
 
 if st.button("🚀 Calculate & Generate Graph"):
-    wavelengths_nm = edited_df["Wavelength λ (nm)"].to_numpy()
-    voltages = edited_df["Stopping Voltage V₀ (V)"].to_numpy()
-    colors = edited_df["Filter / Color"].to_list()
+    # Convert data explicitly to numeric float arrays to prevent TypeErrors
+    wavelengths_nm = pd.to_numeric(edited_df["Wavelength λ (nm)"], errors='coerce').to_numpy(dtype=float)
+    voltages = pd.to_numeric(edited_df["Stopping Voltage V₀ (V)"], errors='coerce').to_numpy(dtype=float)
+    colors = edited_df["Filter / Color"].astype(str).to_list()
     
+    # Calculate Frequency
     wavelengths_m = wavelengths_nm * 1e-9
     frequencies = c / wavelengths_m
     
+    # Linear Fit
     slope, intercept = np.polyfit(frequencies, voltages, 1)
     h_exp = e * slope
     percentage_error = abs((h_exp - h_actual) / h_actual) * 100
 
+    # Display Metrics
     st.subheader("📊 Output Results")
     m1, m2, m3 = st.columns(3)
     m1.metric(label="Calculated Slope (dV/dν)", value=f"{slope:.4e} V·s")
@@ -54,6 +58,7 @@ if st.button("🚀 Calculate & Generate Graph"):
 
     st.markdown("---")
 
+    # Display Plot
     st.subheader("📈 Stopping Voltage (V₀) vs. Frequency (ν) Graph")
     plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(9, 5))
