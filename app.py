@@ -35,46 +35,55 @@ edited_df = st.data_editor(
 st.markdown("---")
 
 if st.button("🚀 Calculate & Generate Graph"):
-    # Convert data explicitly to numeric float arrays to prevent TypeErrors
-    wavelengths_nm = pd.to_numeric(edited_df["Wavelength λ (nm)"], errors='coerce').to_numpy(dtype=float)
-    voltages = pd.to_numeric(edited_df["Stopping Voltage V₀ (V)"], errors='coerce').to_numpy(dtype=float)
-    colors = edited_df["Filter / Color"].astype(str).to_list()
+    # Clean data & drop missing/empty values
+    df_clean = edited_df.dropna().copy()
     
-    # Calculate Frequency
-    wavelengths_m = wavelengths_nm * 1e-9
-    frequencies = c / wavelengths_m
-    
-    # Linear Fit
-    slope, intercept = np.polyfit(frequencies, voltages, 1)
-    h_exp = e * slope
-    percentage_error = abs((h_exp - h_actual) / h_actual) * 100
+    df_clean["Wavelength λ (nm)"] = pd.to_numeric(df_clean["Wavelength λ (nm)"], errors='coerce')
+    df_clean["Stopping Voltage V₀ (V)"] = pd.to_numeric(df_clean["Stopping Voltage V₀ (V)"], errors='coerce')
+    df_clean = df_clean.dropna()
 
-    # Display Metrics
-    st.subheader("📊 Output Results")
-    m1, m2, m3 = st.columns(3)
-    m1.metric(label="Calculated Slope (dV/dν)", value=f"{slope:.4e} V·s")
-    m2.metric(label="Experimental Planck's Constant (h)", value=f"{h_exp:.4e} J·s")
-    m3.metric(label="Percentage Error", value=f"{percentage_error:.2f}%")
+    if len(df_clean) < 2:
+        st.error("Please enter at least 2 valid data rows to fit a line.")
+    else:
+        wavelengths_nm = df_clean["Wavelength λ (nm)"].to_numpy(dtype=float)
+        voltages = df_clean["Stopping Voltage V₀ (V)"].to_numpy(dtype=float)
+        colors = df_clean["Filter / Color"].astype(str).to_list()
+        
+        # Calculate Frequency
+        wavelengths_m = wavelengths_nm * 1e-9
+        frequencies = c / wavelengths_m
+        
+        # Linear Regression
+        slope, intercept = np.polyfit(frequencies, voltages, 1)
+        h_exp = e * slope
+        percentage_error = abs((h_exp - h_actual) / h_actual) * 100
 
-    st.markdown("---")
+        # Display Metrics
+        st.subheader("📊 Output Results")
+        m1, m2, m3 = st.columns(3)
+        m1.metric(label="Calculated Slope (dV/dν)", value=f"{slope:.4e} V·s")
+        m2.metric(label="Experimental Planck's Constant (h)", value=f"{h_exp:.4e} J·s")
+        m3.metric(label="Percentage Error", value=f"{percentage_error:.2f}%")
 
-    # Display Plot
-    st.subheader("📈 Stopping Voltage (V₀) vs. Frequency (ν) Graph")
-    plt.style.use('dark_background')
-    fig, ax = plt.subplots(figsize=(9, 5))
-    
-    ax.scatter(frequencies, voltages, color='#00FFC8', s=80, label='Lab Data Points', zorder=5)
-    for i, txt in enumerate(colors):
-        ax.annotate(f" {txt}", (frequencies[i], voltages[i]), fontsize=9, color='#00FFC8')
-    
-    freq_line = np.linspace(min(frequencies)*0.95, max(frequencies)*1.05, 100)
-    voltage_line = slope * freq_line + intercept
-    ax.plot(freq_line, voltage_line, color='#FF5733', linestyle='--', linewidth=2, label='Best-Fit Line')
-    
-    ax.set_xlabel("Frequency ν (Hz)", fontsize=11, color='white')
-    ax.set_ylabel("Stopping Voltage V₀ (V)", fontsize=11, color='white')
-    ax.set_title("Photoelectric Effect Graph", fontsize=13, color='white')
-    ax.grid(True, linestyle=':', alpha=0.4)
-    ax.legend()
-    
-    st.pyplot(fig)
+        st.markdown("---")
+
+        # Plot
+        st.subheader("📈 Stopping Voltage (V₀) vs. Frequency (ν) Graph")
+        plt.style.use('dark_background')
+        fig, ax = plt.subplots(figsize=(9, 5))
+        
+        ax.scatter(frequencies, voltages, color='#00FFC8', s=80, label='Lab Data Points', zorder=5)
+        for i, txt in enumerate(colors):
+            ax.annotate(f" {txt}", (frequencies[i], voltages[i]), fontsize=9, color='#00FFC8')
+        
+        freq_line = np.linspace(min(frequencies)*0.95, max(frequencies)*1.05, 100)
+        voltage_line = slope * freq_line + intercept
+        ax.plot(freq_line, voltage_line, color='#FF5733', linestyle='--', linewidth=2, label='Best-Fit Line')
+        
+        ax.set_xlabel("Frequency ν (Hz)", fontsize=11, color='white')
+        ax.set_ylabel("Stopping Voltage V₀ (V)", fontsize=11, color='white')
+        ax.set_title("Photoelectric Effect Graph", fontsize=13, color='white')
+        ax.grid(True, linestyle=':', alpha=0.4)
+        ax.legend()
+        
+        st.pyplot(fig)
