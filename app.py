@@ -45,18 +45,25 @@ if st.button("🚀 Calculate & Generate Graph"):
     if len(df_clean) < 2:
         st.error("Please enter at least 2 valid data rows to fit a line.")
     else:
-        wavelengths_nm = df_clean["Wavelength λ (nm)"].to_numpy(dtype=float)
+        # Calculate Frequency
+        df_clean["Frequency (Hz)"] = c / (df_clean["Wavelength λ (nm)"] * 1e-9)
+        
+        # FIX: Sort values by Frequency ascending to match loop math precision
+        df_clean = df_clean.sort_values(by="Frequency (Hz)", ascending=True).reset_index(drop=True)
+
+        frequencies = df_clean["Frequency (Hz)"].to_numpy(dtype=float)
         voltages = df_clean["Stopping Voltage V₀ (V)"].to_numpy(dtype=float)
         colors = df_clean["Filter / Color"].astype(str).to_list()
         
-        # Calculate Frequency
-        wavelengths_m = wavelengths_nm * 1e-9
-        frequencies = c / wavelengths_m
+        # Linear Regression (Matches your pure python loop math)
+        mean_x = np.mean(frequencies)
+        mean_y = np.mean(voltages)
         
-        # Linear Regression
-        slope, intercept = np.polyfit(frequencies, voltages, 1)
-        h_exp = e * slope
-        percentage_error = abs((h_exp - h_actual) / h_actual) * 100
+        slope = np.sum((frequencies - mean_x) * (voltages - mean_y)) / np.sum((frequencies - mean_x) ** 2)
+        intercept = mean_y - (slope * mean_x)
+        
+        h_exp = slope * e
+        percentage_error = (abs(h_exp - h_actual) / h_actual) * 100
 
         # Display Metrics
         st.subheader("📊 Output Results")
